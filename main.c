@@ -32,7 +32,7 @@
  * @param buf buffer to transmit
  * @param len length of buffer
  */
-void send_spi_buffer(const uint8_t * restrict buf, const uint_fast16_t len)
+void send_spi_buffer(const uint8_t *buf, const uint_fast8_t len)
 {
 	// Select data transmission
 	MK_IL3829_DC_PIN = 1;
@@ -40,7 +40,7 @@ void send_spi_buffer(const uint8_t * restrict buf, const uint_fast16_t len)
 	// Select display for SPI communication
 	MK_IL3829_CS_PIN = 0;
 
-	for(uint_fast16_t i = 0; i < len; i++)
+	for(uint_fast8_t i = 0; i < len; i++)
 	{
 		uint_fast8_t unused_read;
 		SSP1BUF = buf[i];
