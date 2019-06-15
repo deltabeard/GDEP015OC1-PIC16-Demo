@@ -289,7 +289,7 @@ void disp_sleep(void)
 
 void disp_set_block(const uint8_t x, const uint8_t y,
 		    const uint8_t x_end, const uint8_t y_end,
-		    const uint8_t colour)
+		    const uint8_t pattern)
 {
 	
 	uint16_t pixels = ((x_end + 1) - x) * ((y_end + 1) - y);
@@ -304,10 +304,10 @@ void disp_set_block(const uint8_t x, const uint8_t y,
 	// Select display for SPI communication
 	MK_IL3829_CS_PIN = 0;
 
-	/* send the colour data */
+	/* send the pattern data */
 	do {
 		uint_fast8_t unused_read;
-		SSP1BUF = colour;
+		SSP1BUF = pattern;
 		while (!SSP1STATbits.BF);
 		unused_read = SSP1BUF;
 	} while(pixels--);
@@ -329,7 +329,7 @@ void disp_write_image(const uint8_t x, const uint8_t y,
 	// Select display for SPI communication
 	MK_IL3829_CS_PIN = 0;
 
-	/* send the colour data */
+	/* send the pattern data */
 	for(uint_fast16_t i = 0; i < len; i++)
 	{
 		uint_fast8_t unused_read;
