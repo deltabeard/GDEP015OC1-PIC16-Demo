@@ -31,7 +31,7 @@ inline void send_spi_byte(const uint8_t byte)
 {
 	uint_fast8_t unused_read;
 	SSP1BUF = byte;
-	while (!SSP1STATbits.BF);
+	while(!SSP1STATbits.BF);
 	unused_read = SSP1BUF;
 }
 
@@ -78,7 +78,7 @@ void send_disp_command(const uint8_t cmd)
  */
 inline void disp_wait_until_idle(void)
 {
-	while(MK_LIB_READ_BUSY_PIN == 1);
+	while(MK_LIB_READ_BUSY_PIN);
 }
 
 /**
@@ -96,29 +96,29 @@ inline void init_pic(void)
 	//            1   NVMMD: Disable NVM Module
 	//             1  CLKRMD: Disable Clock Reference CLKR
 	//              1 IOCMD: Disable Interrupt-on-Change bit, All Ports
-	
+
 	PMD1 = 0b11111111;
 	//       1        NCOMD: Disable Numerically Control Oscillator 
 	//        1111111 TMRxMD: Disable all timers
-	
+
 	PMD2 = 0b11111111;
 	//       U  UU
 	//        1       DACMD: Disable DAC
 	//         1      ADCMD: Disable ADC
 	//            11  CMPxMD: Disable all comparators
 	//              1 ZCDMD: Disable ZCD
-	
+
 	PMD3 = 0b11111111;
 	//       U
 	//        11      PWMxMD: Disable all Pulse-Width Modulators
 	//          11111 CCPxMD: Disable all Comparators
-	
+
 	PMD4 = 0b11101111;
 	//       U   U
 	//        1       UART1MD: Disable EUSART
 	//         10     MSSPxMD: Enable MSSP1MD only.
 	//            111 CWG1MD: Disable CWG
-	
+
 	PMD5 = 0b11111111;
 	//         U
 	//       11       SMTxMD: Disable Signal Measurement Timers
@@ -147,7 +147,7 @@ inline void init_pic(void)
 	//               1 TRISB0: RB0 input from IL3829 BUSY pin
 	TRISC = 0x00;
 	//        XX       Unused
-	
+
 	/* Set sleep mode to lowest power. */
 	VREGCONbits.VREGPM = 1;
 
@@ -211,8 +211,8 @@ inline void init_display(void)
 	send_spi_buffer(dems_data, sizeof (dems_data));
 
 	send_disp_command(WRITE_LUT_REGISTER);
-	//send_spi_buffer(lut_full_update, sizeof(lut_full_update));
-	send_spi_buffer(lut_partial_update, sizeof(lut_partial_update));
+	send_spi_buffer(lut_full_update, sizeof (lut_full_update));
+	//send_spi_buffer(lut_partial_update, sizeof(lut_partial_update));
 }
 
 void disp_set_memory_area(const uint8_t x_start, const uint8_t y_start,
@@ -245,7 +245,7 @@ void set_memory_pointer(uint8_t x, uint8_t y)
 void disp_clear_frame_memory(const uint8_t color)
 {
 	disp_set_memory_area(0, 0,
-			 IL3829_DISPLAY_WIDTH - 1, IL3829_DISPLAY_HEIGHT - 1);
+			IL3829_DISPLAY_WIDTH - 1, IL3829_DISPLAY_HEIGHT - 1);
 	set_memory_pointer(0, 0);
 	send_disp_command(WRITE_RAM);
 
@@ -256,40 +256,41 @@ void disp_clear_frame_memory(const uint8_t color)
 	MK_LIB_SET_CS_PIN(0);
 
 	/* send the colour data */
-	for(uint16_t i = (IL3829_DISPLAY_WIDTH / 8) * IL3829_DISPLAY_HEIGHT;
-		i != 0; i--)
+	uint_fast16_t i = (IL3829_DISPLAY_WIDTH / 8) * IL3829_DISPLAY_HEIGHT;
+	do
 	{
 		MK_LIB_SEND_SPI_BYTE(color);
 	}
+	while(--i);
 
 	MK_LIB_SET_CS_PIN(1);
 }
 
 void disp_display_frame(void)
 {
-    send_disp_command(DISPLAY_UPDATE_CONTROL_2);
-    const uint8_t duc2_data[] = { 0xC4 };
-    send_spi_buffer(duc2_data, sizeof (duc2_data));
-    
-    send_disp_command(MASTER_ACTIVATION);
-    send_disp_command(TERMINATE_FRAME_READ_WRITE);
-    
-    disp_wait_until_idle();
+	send_disp_command(DISPLAY_UPDATE_CONTROL_2);
+	const uint8_t duc2_data[] = {0xC4};
+	send_spi_buffer(duc2_data, sizeof (duc2_data));
+
+	send_disp_command(MASTER_ACTIVATION);
+	send_disp_command(TERMINATE_FRAME_READ_WRITE);
+
+	disp_wait_until_idle();
 }
 
 void disp_sleep(void)
 {
 	send_disp_command(DEEP_SLEEP_MODE);
-	
-	const uint8_t sleep_data[] = { 0x01 };
-	send_spi_buffer(sleep_data, sizeof(sleep_data));
+
+	const uint8_t sleep_data[] = {0x01};
+	send_spi_buffer(sleep_data, sizeof (sleep_data));
 }
 
 void disp_set_block(const uint8_t x, const uint8_t y,
 		    const uint8_t x_end, const uint8_t y_end,
 		    const uint8_t pattern)
 {
-	
+
 	uint16_t pixels = (((x_end + 1) - x) * ((y_end + 1) - y));
 
 	disp_set_memory_area(x, y, x_end, y_end);
@@ -303,10 +304,12 @@ void disp_set_block(const uint8_t x, const uint8_t y,
 	MK_LIB_SET_CS_PIN(0);
 
 	/* send the pattern data */
-	do {
+	do
+	{
 		MK_LIB_SEND_SPI_BYTE(pattern);
-	} while(--pixels);
-	
+	}
+	while(--pixels);
+
 	MK_LIB_SET_CS_PIN(1);
 }
 
@@ -347,58 +350,58 @@ void main(void)
 	disp_set_block(0, 0, 0, 8, 0x00);
 	disp_set_block(8, 8, 8, 16, 0x00);
 	disp_set_block(16, 16, 24, 24, 0x00);
-	
+
 	// Draw thick 8 pixel line across the screen.
-	disp_set_block(8*0, 56, 8*24, 64, 0x00);
-	
+	disp_set_block(8 * 0, 56, 8 * 24, 64, 0x00);
+
 	// Draw 4*8 boxes across the screen.
-	disp_set_block(8*0, 64, 8*24, 72, 0xF0);
-	
+	disp_set_block(8 * 0, 64, 8 * 24, 72, 0xF0);
+
 	// Draw 4*8 boxes across the screen in alternate colour.
-	disp_set_block(8*0, 72, 8*24, 80, 0x0F);
-	
+	disp_set_block(8 * 0, 72, 8 * 24, 80, 0x0F);
+
 	// Draw 2*8 boxes across the screen in alternate colour.
-	disp_set_block(8*0, 80, 8*24, 88, 0b11001100);
-	
+	disp_set_block(8 * 0, 80, 8 * 24, 88, 0b11001100);
+
 	// Draw 1*8 boxes across the screen in alternate colour.
-	disp_set_block(8*0, 88, 8*24, 96, 0b01010101);
-	
+	disp_set_block(8 * 0, 88, 8 * 24, 96, 0b01010101);
+
 	// Draw thick 5 pixel line
-	disp_set_block(8*4, 100, 8*5, 105, 0x00);
-	
+	disp_set_block(8 * 4, 100, 8 * 5, 105, 0x00);
+
 	// Draw 1 pixel dotted line
-	disp_set_block(8*4, 110, 8*4, 110, 0b01010101);
-	
+	disp_set_block(8 * 4, 110, 8 * 4, 110, 0b01010101);
+
 	// Draw 1 pixel line
-	disp_set_block(8*4, 120, 8*5, 120, 0x00);
-	
+	disp_set_block(8 * 4, 120, 8 * 5, 120, 0x00);
+
 	// Draw 11 pixel dotted line
-	disp_set_block(8*4, 130, 8*4, 141, 0b01010101);
-	
+	disp_set_block(8 * 4, 130, 8 * 4, 141, 0b01010101);
+
 	// Draw long vertical line
-	disp_set_block(8*23, 10, 8*23, 190, 0b01111111);
-	
+	disp_set_block(8 * 23, 10, 8 * 23, 190, 0b01111111);
+
 	// Draw long horizontal line
-	disp_set_block(8*1, 180, 8*23, 180, 0x00);
-	
+	disp_set_block(8 * 1, 180, 8 * 23, 180, 0x00);
+
 	// Draw another thick 8 pixel line across the screen.
-	disp_set_block(8*0, 148, 8*24, 156, 0x00);
-	
+	disp_set_block(8 * 0, 148, 8 * 24, 156, 0x00);
+
 	// Draw the hello world bitmap
-	disp_write_image(8*4, 110, (8*4)+hello_world_x, 110+hello_world_y,
-			 hello_world_img, hello_world_len);
-	
+	disp_write_image(8 * 4, 110, (8 * 4) + hello_world_x, 110 + hello_world_y,
+			hello_world_img, hello_world_len);
+
 	// Draw the W bitmap
-	disp_write_image(8*10, 102, (8*10)+w_x, 102+w_y, w_img, w_len);
-	
+	disp_write_image(8 * 14, 102, (8 * 14) + w_x, 102 + w_y, w_img, w_len);
+
 	// Draw display frame buffer to screen
 	disp_display_frame();
-	
+
 	// Set display to deep sleep mode
 	disp_sleep();
-	
+
 	// Put microcontroller to sleep mode; stops restarting program.
 	SLEEP();
-	
+
 	return;
 }

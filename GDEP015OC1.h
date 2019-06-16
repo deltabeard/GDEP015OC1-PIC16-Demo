@@ -2,10 +2,7 @@
  * Copyright (c) 2019, Mahyar Koshkouei
  * Released under ISC License.
  * 
- * Definitions for the GDEP015OC1 display.
- * 
- * Parts of this file is adapted from code found at:
- * https://github.com/MHEtLive/MH-ET-LIVE-E-Papers
+ * Library to operate the GDEP015OC1 display.
  */
 
 #ifndef GDEP015OC1_H
