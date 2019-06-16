@@ -9,23 +9,30 @@
 
 #define _XTAL_FREQ 1000000
 
-#define MK_LIB_READ_BUSY_PIN		PORTBbits.RB0
-#define MK_LIB_SET_RESET_PIN(x)		PORTBbits.RB1 = x
-#define MK_LIB_SET_DC_PIN(x)		PORTBbits.RB2 = x
-#define MK_LIB_SET_CS_PIN(x)		PORTBbits.RB3 = x
-#define MK_LIB_SET_SCLK_PIN(x)		PORTBbits.RB4 = x
-#define MK_LIB_SET_SDI_PIN(x)		PORTBbits.RB5 = x
-#define MK_LIB_SEND_SPI_BYTE(x)		send_spi_byte(x)
-
 #include <stdint.h>
+
+#include "pic_config_bits.h"
 #include <xc.h>
 
+#define MK_GDEP_READ_BUSY_PIN		PORTBbits.RB0
+#define MK_GDEP_RESET_DISPLAY()		reset_display()
+#define MK_GDEP_SET_DC_PIN(x)		PORTBbits.RB2 = x
+#define MK_GDEP_SET_CS_PIN(x)		PORTBbits.RB3 = x
+#define MK_GDEP_SET_SCLK_PIN(x)		PORTBbits.RB4 = x
+#define MK_GDEP_SET_SDI_PIN(x)		PORTBbits.RB5 = x
+#define MK_GDEP_SEND_SPI_BYTE(x)	send_spi_byte(x)
+
+inline void reset_display(void);
+inline void send_spi_byte(const uint8_t byte);
+
 #include "GDEP015OC1.h"
-#include "pic_config_bits.h"
+
 
 /* Bitmaps to draw. */
 #include "w.h"
 #include "hello_world.h"
+
+#define DISPLAY_RESET_PIN(x)		PORTBbits.RB1 = x
 
 inline void send_spi_byte(const uint8_t byte)
 {
@@ -35,50 +42,12 @@ inline void send_spi_byte(const uint8_t byte)
 	unused_read = SSP1BUF;
 }
 
-/**
- * Transmits a given buffer over SPI.
- * 
- * @param buf buffer to transmit
- * @param len length of buffer
- */
-void send_spi_buffer(const uint8_t *buf, const uint_fast8_t len)
+inline void reset_display(void)
 {
-	// Select data transmission
-	MK_LIB_SET_DC_PIN(1);
-
-	// Select display for SPI communication
-	MK_LIB_SET_CS_PIN(0);
-
-	for(uint_fast8_t i = 0; i < len; i++)
-		MK_LIB_SEND_SPI_BYTE(buf[i]);
-
-	MK_LIB_SET_CS_PIN(1);
-}
-
-/**
- * Send command over SPI to the display.
- * 
- * @param cmd Command to send.
- */
-void send_disp_command(const uint8_t cmd)
-{
-	// Select command transmission
-	MK_LIB_SET_DC_PIN(0);
-
-	// Select display for SPI communication
-	MK_LIB_SET_CS_PIN(0);
-
-	MK_LIB_SEND_SPI_BYTE(cmd);
-
-	MK_LIB_SET_CS_PIN(1);
-}
-
-/**
- * Waits until the display is idle.
- */
-inline void disp_wait_until_idle(void)
-{
-	while(MK_LIB_READ_BUSY_PIN);
+	DISPLAY_RESET_PIN(0);
+	NOP();
+	DISPLAY_RESET_PIN(1);
+	NOP();
 }
 
 /**
@@ -163,176 +132,7 @@ inline void init_pic(void)
 	RB5PPS = 0x15; // Set RB5 to SDO1
 	RB4PPS = 0x14; // Set RB4 to SCLK1
 
-	MK_LIB_SET_CS_PIN(1);
-}
-
-/**
- * Initialise the connected display.
- */
-inline void init_display(void)
-{
-	// TODO: Check what the busy pin is doing here.
-	MK_LIB_SET_RESET_PIN(0);
-	NOP();
-	MK_LIB_SET_RESET_PIN(1);
-	NOP();
-
-	send_disp_command(DRIVER_OUTPUT_CONTROL);
-	const uint8_t doc_data[] = {
-		0xC7, // Low 8 bits for display height
-		0x00, // High 8 bits
-		0x00
-		//	0b00000000
-		//	  UUUUU
-		//	       0   GD: Selects gate layout of panel
-		//	        0  SM: Disable interleaved mode
-		//	         0 TB: Scanning direction of gate driver
-	};
-	send_spi_buffer(doc_data, sizeof (doc_data));
-
-	send_disp_command(BOOSTER_SOFT_START_CONTROL);
-	const uint8_t bssc_data[] = {0xD7, 0xD6, 0x9D};
-	send_spi_buffer(bssc_data, sizeof (bssc_data));
-
-	send_disp_command(WRITE_VCOM_REGISTER);
-	const uint8_t wvr_data[] = {0xA8};
-	send_spi_buffer(wvr_data, sizeof (wvr_data));
-
-	send_disp_command(SET_DUMMY_LINE_PERIOD);
-	const uint8_t sdlp_data[] = {0x1A};
-	send_spi_buffer(sdlp_data, sizeof (sdlp_data));
-
-	send_disp_command(SET_GATE_TIME);
-	const uint8_t sgt_data[] = {0x08};
-	send_spi_buffer(sgt_data, sizeof (sgt_data));
-
-	send_disp_command(DATA_ENTRY_MODE_SETTING);
-	const uint8_t dems_data[] = {0x03};
-	send_spi_buffer(dems_data, sizeof (dems_data));
-
-	send_disp_command(WRITE_LUT_REGISTER);
-	send_spi_buffer(lut_full_update, sizeof (lut_full_update));
-	//send_spi_buffer(lut_partial_update, sizeof(lut_partial_update));
-}
-
-void disp_set_memory_area(const uint8_t x_start, const uint8_t y_start,
-			  const uint8_t x_end, const uint8_t y_end)
-{
-	send_disp_command(SET_RAM_X_ADDRESS_START_END_POSITION);
-	/* x point must be the multiple of 8 or the last 3 bits will be ignored */
-	uint8_t set_ramx_addr[] = {(x_start >> 3), (x_end >> 3)};
-	send_spi_buffer(set_ramx_addr, sizeof (set_ramx_addr));
-
-	send_disp_command(SET_RAM_Y_ADDRESS_START_END_POSITION);
-	uint8_t set_ramy_addr[] = {y_start, 0x00, y_end, 0x00};
-	send_spi_buffer(set_ramy_addr, sizeof (set_ramy_addr));
-}
-
-void set_memory_pointer(uint8_t x, uint8_t y)
-{
-	send_disp_command(SET_RAM_X_ADDRESS_COUNTER);
-	/* x point must be the multiple of 8 or the last 3 bits will be ignored */
-	uint8_t set_ramx_addr_count[] = {x >> 3};
-	send_spi_buffer(set_ramx_addr_count, sizeof (set_ramx_addr_count));
-
-	send_disp_command(SET_RAM_Y_ADDRESS_COUNTER);
-	uint8_t set_ramy_addr_count[] = {y, 0x00};
-	send_spi_buffer(set_ramy_addr_count, sizeof (set_ramy_addr_count));
-
-	disp_wait_until_idle();
-}
-
-void disp_clear_frame_memory(const uint8_t color)
-{
-	disp_set_memory_area(0, 0,
-			IL3829_DISPLAY_WIDTH - 1, IL3829_DISPLAY_HEIGHT - 1);
-	set_memory_pointer(0, 0);
-	send_disp_command(WRITE_RAM);
-
-	// Select data transmission
-	MK_LIB_SET_DC_PIN(1);
-
-	// Select display for SPI communication
-	MK_LIB_SET_CS_PIN(0);
-
-	/* send the colour data */
-	uint_fast16_t i = (IL3829_DISPLAY_WIDTH / 8) * IL3829_DISPLAY_HEIGHT;
-	do
-	{
-		MK_LIB_SEND_SPI_BYTE(color);
-	}
-	while(--i);
-
-	MK_LIB_SET_CS_PIN(1);
-}
-
-void disp_display_frame(void)
-{
-	send_disp_command(DISPLAY_UPDATE_CONTROL_2);
-	const uint8_t duc2_data[] = {0xC4};
-	send_spi_buffer(duc2_data, sizeof (duc2_data));
-
-	send_disp_command(MASTER_ACTIVATION);
-	send_disp_command(TERMINATE_FRAME_READ_WRITE);
-
-	disp_wait_until_idle();
-}
-
-void disp_sleep(void)
-{
-	send_disp_command(DEEP_SLEEP_MODE);
-
-	const uint8_t sleep_data[] = {0x01};
-	send_spi_buffer(sleep_data, sizeof (sleep_data));
-}
-
-void disp_set_block(const uint8_t x, const uint8_t y,
-		    const uint8_t x_end, const uint8_t y_end,
-		    const uint8_t pattern)
-{
-
-	uint16_t pixels = (((x_end + 1) - x) * ((y_end + 1) - y));
-
-	disp_set_memory_area(x, y, x_end, y_end);
-	set_memory_pointer(x, y);
-	send_disp_command(WRITE_RAM);
-
-	// Select data transmission
-	MK_LIB_SET_DC_PIN(1);
-
-	// Select display for SPI communication
-	MK_LIB_SET_CS_PIN(0);
-
-	/* send the pattern data */
-	do
-	{
-		MK_LIB_SEND_SPI_BYTE(pattern);
-	}
-	while(--pixels);
-
-	MK_LIB_SET_CS_PIN(1);
-}
-
-void disp_write_image(const uint8_t x, const uint8_t y,
-		      const uint8_t x_end, const uint8_t y_end,
-		      const uint8_t *img, const uint_fast16_t len)
-{
-	disp_set_memory_area(x, y, x_end, y_end);
-	set_memory_pointer(x, y);
-	send_disp_command(WRITE_RAM);
-
-	// Select data transmission
-	MK_LIB_SET_DC_PIN(1);
-
-	// Select display for SPI communication
-	MK_LIB_SET_CS_PIN(0);
-
-	/* send the pattern data */
-	// TODO: Possible optimisation?
-	for(uint_fast16_t i = 0; i < len; i++)
-		MK_LIB_SEND_SPI_BYTE(img[i]);
-
-	MK_LIB_SET_CS_PIN(1);
+	MK_GDEP_SET_CS_PIN(1);
 }
 
 void main(void)
@@ -341,7 +141,7 @@ void main(void)
 	init_pic();
 
 	/* Initialise display. */
-	init_display();
+	init_display(LUT_FULL);
 
 	// Initialise display frame buffer to white.
 	disp_clear_frame_memory(0xFF);
