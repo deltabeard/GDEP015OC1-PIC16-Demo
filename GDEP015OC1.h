@@ -8,14 +8,43 @@
  * https://github.com/MHEtLive/MH-ET-LIVE-E-Papers
  */
 
-#ifndef EPD1IN54_H
-#define	EPD1IN54_H
+#ifndef GDEP015OC1_H
+#define	GDEP015OC1_H
 
-// Display resolution
+/* User required definitions. */
+#ifndef MK_LIB_READ_BUSY_PIN
+#error "MK_LIB_READ_BUSY_PIN was not defined."
+#endif
+
+#ifndef MK_LIB_SET_RESET_PIN
+#error "MK_LIB_SET_RESET_PIN was not defined."
+#endif
+
+#ifndef MK_LIB_SET_DC_PIN
+#error "MK_LIB_SET_DC_PIN was not defined."
+#endif
+
+#ifndef MK_LIB_SET_CS_PIN
+#error "MK_LIB_SET_CS_PIN was not defined."
+#endif
+
+#ifndef MK_LIB_SET_SCLK_PIN
+#error "MK_LIB_SET_SCLK_PIN was not defined."
+#endif
+
+#ifndef MK_LIB_SET_SDI_PIN
+#error "MK_LIB_SET_SDI_PIN was not defined."
+#endif
+
+#ifndef MK_LIB_SEND_SPI_BYTE
+#error "MK_LIB_SEND_SPI_BYTE was not defined."
+#endif
+
+/* Display resolution */
 #define IL3829_DISPLAY_WIDTH	200
 #define IL3829_DISPLAY_HEIGHT	200
 
-// EPD1IN54 commands
+// GDEP015OC1 commands
 #define DRIVER_OUTPUT_CONTROL                       0x01
 #define BOOSTER_SOFT_START_CONTROL                  0x0C
 #define GATE_SCAN_START_POSITION                    0x0F
@@ -54,4 +83,4 @@ const uint8_t lut_partial_update[] =
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
-#endif	/* EPD1IN54_H */
+#endif	/* GDEP015OC1_H */

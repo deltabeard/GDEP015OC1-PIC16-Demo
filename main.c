@@ -9,22 +9,31 @@
 
 #define _XTAL_FREQ 1000000
 
+#define MK_LIB_READ_BUSY_PIN		PORTBbits.RB0
+#define MK_LIB_SET_RESET_PIN(x)		PORTBbits.RB1 = x
+#define MK_LIB_SET_DC_PIN(x)		PORTBbits.RB2 = x
+#define MK_LIB_SET_CS_PIN(x)		PORTBbits.RB3 = x
+#define MK_LIB_SET_SCLK_PIN(x)		PORTBbits.RB4 = x
+#define MK_LIB_SET_SDI_PIN(x)		PORTBbits.RB5 = x
+#define MK_LIB_SEND_SPI_BYTE(x)		send_spi_byte(x)
+
 #include <stdint.h>
 #include <xc.h>
 
-#include "EPD1IN54.h"
+#include "GDEP015OC1.h"
 #include "pic_config_bits.h"
 
 /* Bitmaps to draw. */
 #include "w.h"
 #include "hello_world.h"
 
-#define MK_IL3829_BUSY_PIN		PORTBbits.RB0
-#define MK_IL3829_RESET_PIN		PORTBbits.RB1
-#define MK_IL3829_DC_PIN		PORTBbits.RB2
-#define MK_IL3829_CS_PIN		PORTBbits.RB3
-#define MK_IL3829_SCLK_PIN		PORTBbits.RB4
-#define MK_IL3829_SDI_PIN		PORTBbits.RB5
+inline void send_spi_byte(const uint8_t byte)
+{
+	uint_fast8_t unused_read;
+	SSP1BUF = byte;
+	while (!SSP1STATbits.BF);
+	unused_read = SSP1BUF;
+}
 
 /**
  * Transmits a given buffer over SPI.
@@ -35,20 +44,15 @@
 void send_spi_buffer(const uint8_t *buf, const uint_fast8_t len)
 {
 	// Select data transmission
-	MK_IL3829_DC_PIN = 1;
+	MK_LIB_SET_DC_PIN(1);
 
 	// Select display for SPI communication
-	MK_IL3829_CS_PIN = 0;
+	MK_LIB_SET_CS_PIN(0);
 
 	for(uint_fast8_t i = 0; i < len; i++)
-	{
-		uint_fast8_t unused_read;
-		SSP1BUF = buf[i];
-		while(!SSP1STATbits.BF);
-		unused_read = SSP1BUF;
-	}
+		MK_LIB_SEND_SPI_BYTE(buf[i]);
 
-	MK_IL3829_CS_PIN = 1;
+	MK_LIB_SET_CS_PIN(1);
 }
 
 /**
@@ -59,24 +63,22 @@ void send_spi_buffer(const uint8_t *buf, const uint_fast8_t len)
 void send_disp_command(const uint8_t cmd)
 {
 	// Select command transmission
-	MK_IL3829_DC_PIN = 0;
+	MK_LIB_SET_DC_PIN(0);
 
 	// Select display for SPI communication
-	MK_IL3829_CS_PIN = 0;
+	MK_LIB_SET_CS_PIN(0);
 
-	SSP1BUF = cmd;
-	while(!SSP1STATbits.BF);
-	uint8_t unused_read = SSP1BUF;
+	MK_LIB_SEND_SPI_BYTE(cmd);
 
-	MK_IL3829_CS_PIN = 1;
+	MK_LIB_SET_CS_PIN(1);
 }
 
 /**
  * Waits until the display is idle.
  */
-void disp_wait_until_idle(void)
+inline void disp_wait_until_idle(void)
 {
-	while(MK_IL3829_BUSY_PIN == 1);
+	while(MK_LIB_READ_BUSY_PIN == 1);
 }
 
 /**
@@ -161,7 +163,7 @@ inline void init_pic(void)
 	RB5PPS = 0x15; // Set RB5 to SDO1
 	RB4PPS = 0x14; // Set RB4 to SCLK1
 
-	MK_IL3829_CS_PIN = 1;
+	MK_LIB_SET_CS_PIN(1);
 }
 
 /**
@@ -170,10 +172,10 @@ inline void init_pic(void)
 inline void init_display(void)
 {
 	// TODO: Check what the busy pin is doing here.
-	MK_IL3829_RESET_PIN = 0;
-	__delay_ms(200);
-	MK_IL3829_RESET_PIN = 1;
-	__delay_ms(200);
+	MK_LIB_SET_RESET_PIN(0);
+	NOP();
+	MK_LIB_SET_RESET_PIN(1);
+	NOP();
 
 	send_disp_command(DRIVER_OUTPUT_CONTROL);
 	const uint8_t doc_data[] = {
@@ -242,29 +244,25 @@ void set_memory_pointer(uint8_t x, uint8_t y)
 
 void disp_clear_frame_memory(const uint8_t color)
 {
-	uint8_t unused_read;
-	
 	disp_set_memory_area(0, 0,
 			 IL3829_DISPLAY_WIDTH - 1, IL3829_DISPLAY_HEIGHT - 1);
 	set_memory_pointer(0, 0);
 	send_disp_command(WRITE_RAM);
 
 	// Select data transmission
-	MK_IL3829_DC_PIN = 1;
+	MK_LIB_SET_DC_PIN(1);
 
 	// Select display for SPI communication
-	MK_IL3829_CS_PIN = 0;
+	MK_LIB_SET_CS_PIN(0);
 
-	/* send the color data */
+	/* send the colour data */
 	for(uint16_t i = (IL3829_DISPLAY_WIDTH / 8) * IL3829_DISPLAY_HEIGHT;
 		i != 0; i--)
 	{
-		SSP1BUF = color;
-		while(!SSP1STATbits.BF);
-		unused_read = SSP1BUF;
+		MK_LIB_SEND_SPI_BYTE(color);
 	}
 
-	MK_IL3829_CS_PIN = 1;
+	MK_LIB_SET_CS_PIN(1);
 }
 
 void disp_display_frame(void)
@@ -292,27 +290,24 @@ void disp_set_block(const uint8_t x, const uint8_t y,
 		    const uint8_t pattern)
 {
 	
-	uint16_t pixels = ((x_end + 1) - x) * ((y_end + 1) - y);
+	uint16_t pixels = (((x_end + 1) - x) * ((y_end + 1) - y));
 
 	disp_set_memory_area(x, y, x_end, y_end);
 	set_memory_pointer(x, y);
 	send_disp_command(WRITE_RAM);
 
 	// Select data transmission
-	MK_IL3829_DC_PIN = 1;
+	MK_LIB_SET_DC_PIN(1);
 
 	// Select display for SPI communication
-	MK_IL3829_CS_PIN = 0;
+	MK_LIB_SET_CS_PIN(0);
 
 	/* send the pattern data */
 	do {
-		uint_fast8_t unused_read;
-		SSP1BUF = pattern;
-		while (!SSP1STATbits.BF);
-		unused_read = SSP1BUF;
-	} while(pixels--);
+		MK_LIB_SEND_SPI_BYTE(pattern);
+	} while(--pixels);
 	
-	MK_IL3829_CS_PIN = 1;
+	MK_LIB_SET_CS_PIN(1);
 }
 
 void disp_write_image(const uint8_t x, const uint8_t y,
@@ -324,21 +319,17 @@ void disp_write_image(const uint8_t x, const uint8_t y,
 	send_disp_command(WRITE_RAM);
 
 	// Select data transmission
-	MK_IL3829_DC_PIN = 1;
+	MK_LIB_SET_DC_PIN(1);
 
 	// Select display for SPI communication
-	MK_IL3829_CS_PIN = 0;
+	MK_LIB_SET_CS_PIN(0);
 
 	/* send the pattern data */
+	// TODO: Possible optimisation?
 	for(uint_fast16_t i = 0; i < len; i++)
-	{
-		uint_fast8_t unused_read;
-		SSP1BUF = img[i];
-		while(!SSP1STATbits.BF);
-		unused_read = SSP1BUF;
-	}
+		MK_LIB_SEND_SPI_BYTE(img[i]);
 
-	MK_IL3829_CS_PIN = 1;
+	MK_LIB_SET_CS_PIN(1);
 }
 
 void main(void)

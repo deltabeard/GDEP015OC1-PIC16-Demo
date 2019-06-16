@@ -8,6 +8,7 @@
       <itemPath>hello_world.h</itemPath>
       <itemPath>w.h</itemPath>
       <itemPath>GDEP015OC1.h</itemPath>
+      <itemPath>EPD1IN54.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
